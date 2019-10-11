@@ -148,13 +148,18 @@ it available to the Lambda function as an embedded or content resource.  This is
 shown in the simple example of the `KerberosManager.Init(...)` call above.  While this works,
 it's not the most flexible or secure option.
 
-### Pulling from S3
+### Pulling from AWS Secrets Manager
 
-A better approach would be to _pull_ the keytab file from a secure location that the Lambda
-function can access.  An obvious example would be an S3 bucket which can be secured with
-IAM access controls and server-side encryption.  The IAM Role associated with the Lambda
-would need to grant read access to the target S3 bucket and key path.  This approach is
-demonstrated in the samples included in this repo.
+The optimal approach for secure keytab storage/retrieval is through the use of 
+[AWS Secrets Manager](https://aws.amazon.com/secrets-manager/).
+Secrets Manager natively supports binary content, so base64 conversion isn't necessary.
+A typical keytab is small enough to easily fit in to the maximum size allowed of
+[10 Kb](https://docs.aws.amazon.com/secretsmanager/latest/userguide/reference_limits.html).
+
+Secrets Manager also supports [Resource Policies](https://docs.aws.amazon.com/secretsmanager/latest/userguide/auth-and-access_resource-based-policies.html), so you can access a single keytab secret
+from multiple AWS accounts without having to manage multiple copies of the file.
+
+This approach is demonstrated in the "Sample1.SecretsManagerKTStore" sample project.
 
 ### Pulling from SSM Parameter Store
 
@@ -163,6 +168,15 @@ A similar approach could be used to store the keytab content in an
 be Base64-encoded and stored as a _secure string_.  A typical keytab is small enough to
 easily fit in to the maximum size allowed of
 [4 KB or 8 Kb](https://docs.aws.amazon.com/en_pv/general/latest/gr/aws_service_limits.html#limits_ssm).
+
+### Pulling from S3
+
+Another approach would be to _pull_ the keytab file from a secure location that the Lambda
+function can access.  An obvious example would be an S3 bucket which can be secured with
+IAM access controls and server-side encryption.  The IAM Role associated with the Lambda
+would need to grant read access to the target S3 bucket and key path.  This approach is
+demonstrated in the samples included in this repo.
+
 
 ### Creating a Keytab Offline
 
@@ -210,6 +224,17 @@ on the Linux platform using native Kerberos tooling and libraries.
 This library, together with the latest SQL Client, allows your Lambda function to talk
 to SQL Server using integrated authentication which can be a requirement in some
 scenarios where mixed-mode authentication is undesirable or disallowed altogether.
+
+### [Sample1 with AWS Secrets Manager](src/Sample1.SecretsManagerKTStore) - Sample1 using AWS Secrets Manager as a Keytab store.
+
+This code is mostly identical to the Sample1 code, except that it uses AWS Secrets Manager
+to store the keytab file.
+
+In addition, instead of using the "KerberosRealmKdc" environment variable, it uses
+a "KerberosRealmKdcCSV" environment variable, which takes a CSV list of KDC's instead
+of a single value. In the event of the first KDC in the list being unavailable during
+Lambda initialization, (e.g. during server maintenance or unexpected downtime) then
+the function will try to initialize using the next KDC in the list.
 
 ### [Sample2](src/Sample2) - Windows Authentication to a Web Site or Web Service
 
